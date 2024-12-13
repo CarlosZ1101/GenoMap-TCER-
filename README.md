@@ -38,6 +38,150 @@ To run the model, you will need to download data files```TM_data.csv``` etc. fro
 
 First, we put the ```TMdata.mat``` under the MATLAB folder, run the ```demo_genomap.m``` and ```data.m``` files in the MATLAB folder, build Genomap and get the required data format for TCER. (Using ```Construct_genomap.ipynb``` also works)
 
+```matlab
+
+%% Demonstration of Genomap construction from Tabula Muris scRNA-seq dataset
+% (schaum et al., 2018, Nature)
+% @author: Md Tauhidul Islam, Physical Science Research Scientist,
+% Department of Radiation Oncology, Stanford University
+%%
+
+clear
+% Add necessary code folders
+addpath(genpath('gromov-wassersteinOT'))
+
+% Load data
+load TMdata
+data=double(data);
+% Row and column number of Genomap images
+rowN=33;
+colN=33;
+
+genomaps=construct_genomap(data,rowN,colN);
+
+%% Visualize the genomaps
+
+% Load data label for visualization
+load label_TMData
+load index_TM
+
+GT=grp2idx(label_TMData);
+GTX=categorical(GT);
+dataMat_CNNtrain=genomaps(:,:,:,indxTrain);
+dataMat_CNNtest=genomaps(:,:,:,indxTest);
+groundTruthTest=GTX(indxTest);
+groundTruthTrain=GTX(indxTrain);
+
+label_TMDataU=unique(label_TMData);
+
+[GTsorted,idxGT]=sort(groundTruthTrain);
+
+dataSorted=dataMat_CNNtrain(:,:,:,idxGT);
+
+[GTsorted_test,idxGT_test]=sort(groundTruthTest);
+
+dataSorted_test=dataMat_CNNtest(:,:,:,idxGT_test);
+
+[unique_value,idxOcc]=unique(GTsorted);
+
+numIm=[1:100];
+
+idxX=[31 8 11 28 17 52 26 3 37 29];
+
+outputFolder = 'image_save'; 
+if ~exist(outputFolder, 'dir')
+    mkdir(outputFolder); 
+end
+for ii=1:length(idxOcc)
+    
+    if (sum(ii==idxX)>0)
+        
+        for jj=1:10
+       
+            
+            im=squeeze(dataSorted(:,:,1,idxOcc(ii)+jj));
+            
+            figure(1)
+            imagesc(im)
+            title(strcat('cell class\_',string(label_TMDataU(ii))))
+            axis off
+            
+            filename = fullfile(outputFolder, ...
+                sprintf('cell_class_%s_image_%d.png', string(label_TMDataU(ii)), jj));
+            saveas(gcf, filename);
+
+            pause(2)
+        end
+    else
+    end
+end
+```
+
+
+```matlab
+%%
+clear
+% Add necessary code folders
+addpath(genpath('gromov-wassersteinOT'))
+
+% Load data
+load TMdata
+data_new=double(data);
+% Row and column number of Genomap images
+rowN=33;
+colN=33;
+
+genomaps=construct_genomap(data_new,rowN,colN);
+
+%% data
+load label_TMData
+load index_TM
+
+GT=grp2idx(label_TMData);
+GTX=categorical(GT);
+dataMat_CNNtrain=genomaps(:,:,:,indxTrain);
+dataMat_CNNtest=genomaps(:,:,:,indxTest);
+groundTruthTest=GTX(indxTest);
+groundTruthTrain=GTX(indxTrain);
+
+label_TMDataU=unique(label_TMData);
+
+[GTsorted,idxGT]=sort(groundTruthTrain);
+
+dataSorted_train=dataMat_CNNtrain(:,:,:,idxGT);
+
+[GTsorted_test,idxGT_test]=sort(groundTruthTest);
+
+dataSorted_test=dataMat_CNNtest(:,:,:,idxGT_test);
+
+% Save the sorted training data to a file
+save('dataSorted_train.mat', 'dataSorted_train');
+
+% Save the sorted test data to a file
+save('dataSorted_test.mat', 'dataSorted_test');
+
+save('dataMat_CNNtest.mat','dataMat_CNNtest');
+
+save('dataMat_CNNtrain.mat','dataMat_CNNtrain');
+
+
+newName_dataSorted_train = 'train_genoMaps_GT';
+newName_dataSorted_test = 'test_genoMaps_GT';
+newName_dataMat_CNNtest = 'test_genoMaps';
+newName_dataMat_CNNtrain = 'train_genoMaps';
+
+train_genoMaps_GT=dataSorted_train;
+test_genoMaps_GT = dataSorted_test;
+test_genoMaps = dataMat_CNNtest;
+train_genoMaps = dataMat_CNNtrain;
+
+save('CellularTax_dataSAVER10-2000.mat', 'train_genoMaps_GT', 'test_genoMaps_GT', 'test_genoMaps', 'train_genoMaps');
+
+save('CellularTax_GTlabel','GTlabel')
+
+```
+
+
 ### 2. Data visualization
 
 Put the ```TM_data.csv``` data in the same root directory as the genomap folder, and run the following code. You can view the running results in the corresponding files.
@@ -263,9 +407,129 @@ python test_genoMap.py --dataset 'CellularTax' --rate '10-2000' --epoch_suffix 5
 
 ### Results visualization
 The visualization tutorial could be found in the ```Visulization_TMdata.ipynb```  and  ```Visulization_TCERdata.ipynb```file. 
-The TCER data can be download [here](https://drive.google.com/file/d/1H1tpwM96IR21qTKYF3EK5m6ziAVwUKIp/view?usp=share_link)
+The TCER data can be download [here](https://drive.google.com/file/d/1H1tpwM96IR21qTKYF3EK5m6ziAVwUKIp/view?usp=share_link).
+
+```python
+from scipy.io import loadmat
+import os
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.stats import pearsonr
+import pandas as pd
+import seaborn as sns
+import umap
+from sklearn.preprocessing import StandardScaler
+
+path = r'./results/CellularTax_10-2000.mat'
+gtpath = r'./data/CellularTax_GTlabel.mat'
+info = loadmat(path)
+train_p = info["Pred_train"]
+train_gt = info["GT_train"]
+train_ori = info["Ori_train"]
+test_p = info["Pred_test"]
+test_gt = info["GT_test"]
+test_ori = info["Ori_test"]
+GTlabel = loadmat(gtpath)["GTlabel"]
+Pred = np.concatenate([train_p, test_p], axis=0)
+GT = np.concatenate([train_gt, test_gt], axis=0)
+Ori = np.concatenate([train_ori, test_ori], axis=0)
+Pred = Pred.reshape(Pred.shape[0], -1)
+GT = GT.reshape(GT.shape[0], -1)
+Ori = Ori.reshape(Ori.shape[0], -1)
+
+PEARSON_COE = []
+PEARSON_COE_IN = []
+
+for t in range(Pred.shape[1]):
+    ipt = Ori[:, t]
+    gt = GT[:, t]
+    f = Pred[:, t]
+    pear_co_f, p_f = pearsonr(f, gt)
+    pear_co_in, p_in = pearsonr(ipt, gt)
+    PEARSON_COE.append(pear_co_f)
+    PEARSON_COE_IN.append(pear_co_in)
+    
+PEARSON_COE = np.array(PEARSON_COE)
+PEARSON_COE_IN = np.array(PEARSON_COE_IN)
+
+print('Before Imputation ==> Pearson: {:.4f} ± {:.4f}'.format(PEARSON_COE_IN.mean(), PEARSON_COE_IN.std()))
+print('After Imputation ==> Pearson: {:.4f} ± {:.4f}'.format(PEARSON_COE.mean(), PEARSON_COE.std()))
+
+PEARSON_ALL = np.concatenate([PEARSON_COE_IN[:, None], PEARSON_COE[:, None]], axis=1)
+palette = ['dodgerblue', 'crimson']
+f, ax = plt.subplots(figsize=(10, 6))
+df = pd.DataFrame(PEARSON_ALL)
+sns.boxplot(data=df, palette=palette, dodge=False, linewidth=1)
+
+
+ax.set(ylim=(0., 1.))
+
+sns.despine(right=True, top=True)
+plt.ylabel('Pearson coefficient', fontsize=20)
+plt.xticks(range(0, 2, 1), ["Oberservation", "Imputation"], rotation=45, fontsize=20)
+plt.yticks(fontsize=20)
+plt.title("Box plot for CellularTax at 0.5% efficiency loss")
+plt.tight_layout()
+
+reducer = umap.UMAP()
+scaled_GT_data = StandardScaler().fit_transform(GT)
+UMAP_embedding_gt = reducer.fit_transform(scaled_GT_data)
+df_subset = pd.DataFrame(GT)
+df_subset['y'] = GTlabel
+df_subset['UMAP-1'] = UMAP_embedding_gt[:, 0]
+df_subset['UMAP-2'] = UMAP_embedding_gt[:, 1]
+plt.figure(figsize=(16, 10))
+sns.scatterplot(
+    x="UMAP-1", y="UMAP-2",
+    hue="y",
+    palette=sns.color_palette("hls", 16),
+    data=df_subset,
+    legend="full",
+    alpha=0.3
+)
+plt.title('UMAP projection of the Reference data', fontsize=24)
+
+reducer = umap.UMAP()
+scaled_Pred_data = StandardScaler().fit_transform(Pred)
+UMAP_embedding_pred = reducer.fit_transform(scaled_Pred_data)
+df_subset = pd.DataFrame(Pred)
+df_subset['y'] = GTlabel
+df_subset['UMAP-1'] = UMAP_embedding_pred[:, 0]
+df_subset['UMAP-2'] = UMAP_embedding_pred[:, 1]
+plt.figure(figsize=(16, 10))
+sns.scatterplot(
+    x="UMAP-1", y="UMAP-2",
+    hue="y",
+    palette=sns.color_palette("hls", 16),
+    data=df_subset,
+    legend="full",
+    alpha=0.3
+)
+plt.title('UMAP projection of the Imputation results', fontsize=24)
+
+reducer = umap.UMAP()
+scaled_Ori_data = StandardScaler().fit_transform(Ori)
+UMAP_embedding_ori = reducer.fit_transform(scaled_Ori_data)
+df_subset = pd.DataFrame(Ori)
+df_subset['y'] = GTlabel
+df_subset['UMAP-1'] = UMAP_embedding_ori[:, 0]
+df_subset['UMAP-2'] = UMAP_embedding_ori[:, 1]
+plt.figure(figsize=(16, 10))
+sns.scatterplot(
+    x="UMAP-1", y="UMAP-2",
+    hue="y",
+    palette=sns.color_palette("hls", 16),
+    data=df_subset,
+    legend="full",
+    alpha=0.3
+)
+plt.title('UMAP projection of the Observation data', fontsize=24);
+```
+
+## Conclusion
 
 Through the relicate of the method, we can draw the following conclusions:
+
 TCER can effectively improve the correlation between genes on the basis of GenoMap.
 However, it is important to note that TCER is no longer valid if a high level of correlation is reached between the genes after GenoMap processing.
 Combining GenoMap with deep learning methods to improve genomap correlation is an effective way to explore the relationships and interactions between genes.
