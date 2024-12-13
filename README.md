@@ -31,10 +31,14 @@ To maximally reflect the gene-gene interaction information of the system through
 
 ### Data 
 
-To run the model, you will need to download data files from [here](https://drive.google.com/drive/folders/1xq3bBgVP0NCMD7bGTXit0qRkL8fbutZ6?usp=drive_link).
+To run the model, you will need to download data files```TM_data.csv``` from [here](https://drive.google.com/drive/folders/1xq3bBgVP0NCMD7bGTXit0qRkL8fbutZ6?usp=drive_link), download the ```TMdata.mat``` from [here](https://github.com/xinglab-ai/genomap/blob/main/MATLAB/TMdata.mat)
 
 
 ### 1. Transform the data by GenoMap
+
+
+
+
 
 
 
